@@ -1,0 +1,441 @@
+INCLUDE Irvine32.inc
+
+.data
+; === Lab 03 Data: Basic Arithmetic ===
+L03_varByte BYTE 10
+L03_varWord WORD 2000h
+L03_varDword DWORD 12345
+L03_result DWORD ?
+L03_header BYTE "--- 1. LAB 03: Basic Instructions (MOV, ADD, SUB) ---", 0
+
+; === Lab 04 Data: Operators & Extension ===
+L04_myArray DWORD 5 DUP(1)
+L04_byteVal SBYTE -10
+L04_dwordVal DWORD 0
+L04_header BYTE "--- 2. LAB 04: MOVZX/MOVSX, DUP, XCHG ---", 0
+
+; === Lab 05 Data: Addressing Modes & Operators ===
+L05_intArray DWORD 10, 20, 30, 40, 50
+L05_header BYTE "--- 3. LAB 05: Addressing Modes & SIZEOF/PTR ---", 0
+L05_sizes  BYTE "LENGTHOF: 5, TYPE: 4, SIZEOF: 20", 0
+
+; === Lab 06 Data: Loops & Jumps ===
+L06_counter DWORD 5
+L06_msgLoop BYTE "  > Loop Iteration: ", 0
+L06_header BYTE "--- 4. LAB 06: LOOP, JMP, I/O Procedures ---", 0
+
+; === Lab 07 Data: Conditional Logic (IF-ELSE) ===
+L07_msgYes BYTE "  > EAX is Greater than EBX.", 0
+L07_msgNo  BYTE "  > EAX is Not Greater than EBX.", 0
+L07_header BYTE "--- 5. LAB 07: Conditional Jumps (IF-ELSE) ---", 0
+
+; === Lab 08 Data: Stack & Procedures ===
+L08_val1 DWORD 5
+L08_val2 DWORD 7
+L08_sum DWORD ?
+L08_header BYTE "--- 6. LAB 08: Stack (PUSH/POP) & Procedures ---", 0
+L08_sumMsg BYTE "  > Sum: ", 0
+
+; === Lab 09 Data: Arithmetic (IMUL, IDIV, SHL) ===
+L09_header BYTE "--- 7. LAB 09: IMUL, IDIV, SHL (Integer Arithmetic) ---", 0
+L09_mulMsg BYTE "  > IMUL (-5 * 10). AX (Result): ", 0
+L09_divMsg BYTE "  > IDIV (-100 / 10). EAX (Quotient): ", 0
+
+; === Lab 10 Data: INVOKE and ADDR ===
+L10_array DWORD 100, 200, 300, 400, 500
+L10_header BYTE "--- 8. LAB 10: INVOKE/ADDR (Advanced Procedures) ---", 0
+L10_modMsg BYTE "  > Array element 2 modified to: ", 0
+L10_valMsg BYTE "  > Original value of element 2 (300) is now: "
+
+; === Lab 11 Data: 2D Array & String Primitives ===
+; 3 rows x 5 columns WORD array (ElementSize = 2 bytes)
+L11_Matrix WORD 10h, 20h, 30h, 40h, 50h
+           WORD 60h, 70h, 80h, 90h, A0h
+           WORD B0h, C0h, D0h, E0h, F0h
+L11_sourceStr BYTE "ABCD!", 0
+L11_destStr   BYTE 6 DUP(?)
+L11_header BYTE "--- 9. LAB 11: 2D Arrays & REP MOVSB ---", 0
+L11_2dMsg BYTE "  > Matrix[1][2] (Value 80h): ", 0
+L11_strMsg BYTE "  > Copied String: ", 0
+
+.code
+; Forward declarations for Lab 10
+IncrementElement PROTO, pArray:PTR DWORD, index:DWORD
+L08_AddTwo PROTO
+
+; =================================================================
+; 1. LAB 03 EXAMPLE: MOV, ADD, SUB
+; =================================================================
+Example_Lab03 PROC
+    pushad
+    mov edx, OFFSET L03_header
+    call WriteString
+    call CrLf
+    
+    ; MOV (Data Transfer)
+    mov eax, L03_varDword   ; EAX = 12345
+    
+    ; ADD (Addition)
+    add eax, 500            ; EAX = 12845
+    
+    ; SUB (Subtraction)
+    sub eax, L03_varWord    ; EAX = 12845 - 2000h (8192 dec) = 4653
+    
+    mov L03_result, eax
+    
+    mov edx, OFFSET L03_result
+    call WriteString
+    mov eax, L03_result
+    call WriteDec
+    call CrLf
+    popad
+    call CrLf
+    ret
+Example_Lab03 ENDP
+
+; =================================================================
+; 2. LAB 04 EXAMPLE: MOVZX/MOVSX, XCHG
+; =================================================================
+Example_Lab04 PROC
+    pushad
+    mov edx, OFFSET L04_header
+    call WriteString
+    call CrLf
+    
+    ; MOVZX (Move with Zero Extend)
+    mov al, 0FFh            ; AL = 1111 1111b
+    movzx ebx, al           ; EBX = 0000 00FFh (Unsigned conversion)
+
+    ; MOVSX (Move with Sign Extend)
+    movsx eax, L04_byteVal  ; EAX = FFFFFFF6h (Signed conversion of -10)
+    
+    ; XCHG (Exchange)
+    mov L04_dwordVal, 1
+    mov ecx, 2
+    xchg ecx, L04_dwordVal  ; ECX = 1, L04_dwordVal = 2
+
+    mov edx, OFFSET L04_dwordVal
+    call WriteString
+    mov eax, L04_dwordVal
+    call WriteDec
+    call CrLf
+    
+    popad
+    call DumpRegs           ; Show effect of MOVZX/MOVSX/XCHG
+    call CrLf
+    ret
+Example_Lab04 ENDP
+
+; =================================================================
+; 3. LAB 05 EXAMPLE: ADDRESSING MODES & SIZEOF/PTR
+; =================================================================
+Example_Lab05 PROC
+    pushad
+    mov edx, OFFSET L05_header
+    call WriteString
+    call CrLf
+    
+    ; Display Size Operators
+    mov edx, OFFSET L05_sizes
+    call WriteString
+    call CrLf
+    
+    ; Direct Offset Addressing (Access 3rd element: 30)
+    mov eax, L05_intArray[8] ; Index 2 * TYPE 4 = 8 bytes offset. EAX = 30
+    mov edx, OFFSET L05_intArray
+    call WriteString
+    call WriteDec
+    call CrLf
+    
+    ; Indexed Addressing with Scale Factor (Access 5th element: 50)
+    mov esi, 4               ; ESI = index (4)
+    mov eax, [esi * 4 + L05_intArray] ; EAX = 50
+    mov edx, OFFSET L05_intArray
+    call WriteString
+    call WriteDec
+    call CrLf
+
+    ; PTR Operator (Force 1-byte read from a DWORD)
+    mov eax, 0ABCDEF01h
+    mov [L05_intArray], eax      ; L05_intArray[0] = 0ABCDEF01h
+    mov al, BYTE PTR L05_intArray ; AL = 01h (reads only the first byte)
+
+    popad
+    call CrLf
+    ret
+Example_Lab05 ENDP
+
+; =================================================================
+; 4. LAB 06 EXAMPLE: LOOP, JMP, I/O Procedures
+; =================================================================
+Example_Lab06 PROC
+    pushad
+    mov edx, OFFSET L06_header
+    call WriteString
+    call CrLf
+    
+    mov ecx, L06_counter ; ECX = 5 (Loop Counter)
+
+L06_LoopStart:
+    mov edx, OFFSET L06_msgLoop
+    call WriteString
+    
+    mov eax, ecx
+    call WriteDec    ; Prints the current counter value
+    call CrLf
+    
+    loop L06_LoopStart
+
+    ; JMP Instruction (Unconditional Jump Example)
+    mov eax, 10
+    cmp eax, 11
+    jle L06_ElseBlock ; Jump if Less than or Equal
+    
+    jmp L06_EndIf
+    
+L06_ElseBlock:
+    mov edx, OFFSET L06_msgNo
+    call WriteString
+    
+L06_EndIf:
+    popad
+    call CrLf
+    ret
+Example_Lab06 ENDP
+
+; =================================================================
+; 5. LAB 07 EXAMPLE: CONDITIONAL JUMPS (IF-ELSE)
+; =================================================================
+Example_Lab07 PROC
+    pushad
+    mov edx, OFFSET L07_header
+    call WriteString
+    call CrLf
+    
+    mov eax, 15
+    mov ebx, 10
+    
+    ; IF (EAX > EBX) THEN print "Greater" ELSE print "Not Greater"
+    cmp eax, ebx
+    jle L07_ElseBlock      ; Jump if Less than or Equal
+    
+    ; --- IF Block ---
+    mov edx, OFFSET L07_msgYes
+    call WriteString
+    jmp L07_EndIf
+    
+L07_ElseBlock:
+    ; --- ELSE Block ---
+    mov edx, OFFSET L07_msgNo
+    call WriteString
+    
+L07_EndIf:
+    popad
+    call CrLf
+    ret
+Example_Lab07 ENDP
+
+; =================================================================
+; 6. LAB 08 EXAMPLE: STACK & PROCEDURES
+; =================================================================
+Example_Lab08 PROC
+    pushad
+    mov edx, OFFSET L08_header
+    call WriteString
+    call CrLf
+    
+    ; Procedure Call (Pass by Value - Manual PUSH)
+    push L08_val2           ; Push 7 onto stack
+    push L08_val1           ; Push 5 onto stack
+    call L08_AddTwo
+    mov L08_sum, eax        ; EAX contains the sum (12)
+    
+    mov edx, OFFSET L08_sumMsg
+    call WriteString
+    mov eax, L08_sum
+    call WriteDec
+    call CrLf
+    
+    popad
+    call CrLf
+    ret
+Example_Lab08 ENDP
+
+; Procedure to add two values passed on the stack (Lab 08 style)
+L08_AddTwo PROC
+    push ebp            ; Save caller's EBP
+    mov ebp, esp        ; Set up new stack frame
+    
+    ; Access Parameters: [EBP+8] is val1, [EBP+12] is val2
+    mov eax, [ebp+12]   ; EAX = val2 (7)
+    add eax, [ebp+8]    ; EAX = 7 + val1 (5) = 12
+
+    pop ebp             ; Restore old EBP
+    ret 8               ; Return and remove 8 bytes (two DWORDS) of parameters
+L08_AddTwo ENDP
+
+; =================================================================
+; 7. LAB 09 EXAMPLE: IMUL, IDIV, SHL
+; =================================================================
+Example_Lab09 PROC
+    pushad
+    mov edx, OFFSET L09_header
+    call WriteString
+    call CrLf
+    
+    ; SHL (Logical Left Shift - Multiply by 2)
+    mov al, 1            ; AL = 1
+    shl al, 4            ; AL = 16. (1 * 2^4)
+
+    ; IMUL (Signed Multiplication)
+    mov al, -5           ; AL = FBh
+    mov bl, 10
+    imul bl              ; AX = -50 (FFCEh)
+    
+    mov edx, OFFSET L09_mulMsg
+    call WriteString
+    movsx eax, ax        ; Sign extend to EAX for display
+    call WriteInt
+    call CrLf
+
+    ; IDIV (Signed Division)
+    mov eax, -100        ; EAX = FFFFFF9Ch
+    cdq                  ; EDX:EAX = FFFFFFFFFFFFFF9Ch (Sign Extension)
+    mov ebx, 10
+    idiv ebx             ; EAX = Quotient (-10), EDX = Remainder (0)
+
+    mov edx, OFFSET L09_divMsg
+    call WriteString
+    call WriteInt
+    call CrLf
+    
+    popad
+    call CrLf
+    ret
+Example_Lab09 ENDP
+
+; =================================================================
+; 8. LAB 10 EXAMPLE: INVOKE and ADDR
+; =================================================================
+Example_Lab10 PROC
+    pushad
+    mov edx, OFFSET L10_header
+    call WriteString
+    call CrLf
+    
+    ; Initial value of L10_array[2] is 300
+    mov eax, L10_array[8] ; EAX = 300
+    
+    ; INVOKE with ADDR (Pass by Reference) and by Value
+    ; Calls IncrementElement, passing the array address and index 2
+    INVOKE IncrementElement, ADDR L10_array, 2 
+    
+    mov edx, OFFSET L10_valMsg
+    call WriteString
+    
+    mov eax, L10_array[8] ; EAX = 301
+    call WriteDec
+    call CrLf
+    
+    popad
+    call CrLf
+    ret
+Example_Lab10 ENDP
+
+; Procedure definition for Lab 10 (Example of named parameters)
+IncrementElement PROC,
+    pArray:PTR DWORD, ; Pointer to the array
+    index:DWORD       ; Index to modify
+
+    push ebp
+    mov ebp, esp
+    
+    ; ESI = pArray address, ECX = index (2)
+    mov esi, pArray    ; INVOKE handles the frame offset (EBP+8) for named params
+    mov ecx, index
+    
+    ; Calculate Address: ESI + (index * 4)
+    mov ebx, [esi + ecx * 4] ; EBX = L10_array[2] (which is 300)
+    inc ebx                  ; EBX = 301
+    mov [esi + ecx * 4], ebx ; L10_array[2] = 301
+
+    pop ebp
+    ret
+IncrementElement ENDP
+
+
+; =================================================================
+; 9. LAB 11 EXAMPLE: 2D Arrays & String Primitives
+; =================================================================
+ExampleLab11 PROC
+    pushad
+    mov edx, OFFSET L11_header
+    call WriteString
+    call CrLf
+
+    ; --- 2D Array Access ---
+    ; Access Matrix[1][2] (Value 80h) in a 3x5 WORD array
+    .const
+    ROW_INDEX EQU 1
+    COL_INDEX EQU 2
+    COLUMNS EQU 5
+    ELEMENT_SIZE EQU TYPE L11_Matrix ; 2
+    
+    ; Calculate Row Offset: (RowSize * RowIndex)
+    mov eax, COLUMNS * ELEMENT_SIZE ; EAX = 10 (RowSize in bytes)
+    mov edx, ROW_INDEX
+    imul edx             ; EAX = 10 (Row Offset)
+    
+    ; Calculate Column Offset: (ColIndex * ElementSize)
+    mov ebx, COL_INDEX * ELEMENT_SIZE ; EBX = 4 (Column Offset)
+    
+    ; Calculate Total Address and Load Value
+    mov esi, OFFSET L11_Matrix
+    add esi, eax                    ; ESI = BaseAddress + 10 (Points to Matrix[1][0])
+    add esi, ebx                    ; ESI = BaseAddress + 14 (Points to Matrix[1][2])
+    
+    mov ax, [esi]                   ; AX = 80h (The target value)
+    
+    mov edx, OFFSET L11_2dMsg
+    call WriteString
+    call WriteHex                   ; Output: 0080
+    call CrLf
+    
+    ; --- String Primitive (REP MOVSB) ---
+    cld                             ; Set DF (Direction Flag) for forward movement
+    
+    mov ecx, LENGTHOF L11_sourceStr ; ECX = counter (6 bytes to move: "ABCD!" + null)
+    mov esi, OFFSET L11_sourceStr   ; ESI = source address
+    mov edi, OFFSET L11_destStr     ; EDI = destination address
+    
+    rep movsb                       ; Copy all bytes from ESI to EDI
+    
+    mov edx, OFFSET L11_strMsg
+    call WriteString
+    mov edx, OFFSET L11_destStr
+    call WriteString                ; Output: ABCD!
+    call CrLf
+    
+    popad
+    call CrLf
+    ret
+ExampleLab11 ENDP
+
+; =================================================================
+; MAIN PROCEDURE: CALLS ALL EXAMPLES
+; =================================================================
+main PROC
+    
+    call Example_Lab03
+    call Example_Lab04
+    call Example_Lab05
+    call Example_Lab06
+    call Example_Lab07
+    call Example_Lab08
+    call Example_Lab09
+    call Example_Lab10
+    call ExampleLab11
+    
+    exit
+main ENDP
+END main
